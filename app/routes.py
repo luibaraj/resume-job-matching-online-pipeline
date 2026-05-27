@@ -26,12 +26,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+_EDUCATION_ORDER = ["BS", "MS", "PhD"]
+
+
+def _education_filter(education: str) -> dict:
+    level = _EDUCATION_ORDER.index(education)
+    allowed = [""] + _EDUCATION_ORDER[: level + 1]
+    return {"min_education": {"$in": allowed}}
+
+
 def _build_filters(education: str | None, years_of_experience: int | None) -> dict | None:
     clauses = []
     if years_of_experience is not None:
-        clauses.append({"$and": [{"max_yoe": {"$ne": -1}}, {"max_yoe": {"$lte": years_of_experience}}]})
+        clauses.append({"$or": [{"max_yoe": {"$eq": -1}}, {"max_yoe": {"$lte": years_of_experience}}]})
     if education is not None:
-        clauses.append({"$and": [{"min_education": {"$ne": ""}}, {"min_education": {"$eq": education}}]})
+        clauses.append(_education_filter(education))
     if not clauses:
         return None
     if len(clauses) == 1:

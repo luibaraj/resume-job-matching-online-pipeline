@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 chroma_index/
 .venv/
+my_resume.txt
