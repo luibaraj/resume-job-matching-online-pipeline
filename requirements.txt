@@ -5,7 +5,10 @@ langchain-voyageai
 chromadb
 cohere
 openai
+langchain-openai
+langchain-core
 pydantic
 python-dotenv
 pytest
 pytest-mock
+pytest-asyncio
