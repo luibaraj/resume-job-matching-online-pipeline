@@ -16,7 +16,7 @@ CHROMA_COLLECTION = "job_descriptions"
 VOYAGE_MODEL = "voyage-3.5-lite"
 
 # --- Retrieval ---
-CHROMA_EF_SEARCH = 200  # HNSW ef_search; higher = more accurate, slower
+CHROMA_EF_SEARCH = 400  # HNSW ef_search; set at collection creation time in offline pipeline
 TOP_K_RETRIEVE   = 100
 
 # --- Reranking ---

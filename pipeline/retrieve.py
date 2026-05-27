@@ -16,7 +16,6 @@ def retrieve(query_vector: list[float], top_k: int = TOP_K_RETRIEVE, filters: di
         "query_embeddings": [query_vector],
         "n_results": top_k,
         "include": ["distances", "metadatas"],
-        "query_params": {"hnsw:ef": 400},
     }
     if filters is not None:
         kwargs["where"] = filters
