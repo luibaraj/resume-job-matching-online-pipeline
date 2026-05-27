@@ -28,3 +28,7 @@ Log only where execution is hard to trace: proxy failures, unexpected branches, 
 - Commented-out code (delete it; git has history)
 - Wrapper functions that only call one other function with no added logic
 - Generic exception handling that silently swallows errors (`except Exception: pass`)
+
+/Users/luisbarajas/Desktop/Projects/Resume-Job-Matching-System/offline-data-pipeline is a sibling directory under the same project as this one. Use it as context for the offline pipeline when necessary.
+
+/Users/luisbarajas/Desktop/Projects/Resume-Job-Match is an older verion of this project. Ignore it completely.

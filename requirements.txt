@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+voyageai
+chromadb
+cohere
+openai
+pydantic
+python-dotenv
+pytest
+pytest-mock
