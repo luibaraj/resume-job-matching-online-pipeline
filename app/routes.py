@@ -59,9 +59,14 @@ def match(req: MatchRequest):
 
     ranked = rerank(req.resume, candidates, top_k=req.top_k)
 
+    explain_limit = req.explain_top_k if req.explain_top_k is not None else req.top_k
+
     results = []
-    for job in ranked:
-        explanation_text, corpus_warning = explain(req.resume, job)
+    for i, job in enumerate(ranked):
+        if i < explain_limit:
+            explanation_text, corpus_warning = explain(req.resume, job)
+        else:
+            explanation_text, corpus_warning = "", False
         results.append(MatchResult(
             job_id=job["job_id"],
             title=job.get("title", ""),

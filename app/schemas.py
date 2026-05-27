@@ -8,6 +8,7 @@ from config import TOP_K_RERANK_DEFAULT
 class MatchRequest(BaseModel):
     resume: str
     top_k: int = TOP_K_RERANK_DEFAULT
+    explain_top_k: Optional[int] = None
     education: Optional[str] = None
     years_of_experience: Optional[int] = None
 
