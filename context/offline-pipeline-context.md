@@ -58,7 +58,7 @@ Parses education and experience requirements from qualifications text using rege
 **Reads:** `qualifications`  
 **Writes:**
 - `min_education` — str: `"BS"`, `"MS"`, `"PhD"`, or `""` (unknown)
-- `max_yoe` — int: maximum years of experience required, or `-1` (unknown)
+- `max_yoe` — int: minimum years of experience required as stated in the posting (highest `x` from "x+" bullets, or lower bound of bounded ranges), or `-1` (unknown)
 
 ### 5. `embed`
 Generates 1024-dim embeddings via VoyageAI.
@@ -100,7 +100,7 @@ Dynamically added columns (via ALTER TABLE):
 | `description_clean` | TEXT | Normalized description |
 | `qualifications` | TEXT | JSON list |
 | `responsibilities` | TEXT | JSON list |
-| `max_yoe` | INTEGER | `-1` = unknown |
+| `max_yoe` | INTEGER | `-1` = unknown; value is min YOE required per posting |
 | `min_education` | TEXT | `""` = unknown |
 | `jd_embedding` | BLOB | 1024-dim float32 binary |
 
@@ -121,7 +121,7 @@ Dynamically added columns (via ALTER TABLE):
 | `title` | str | `""` | Job title |
 | `company` | str | `""` | Company name |
 | `job_url` | str | `""` | LinkedIn posting URL |
-| `max_yoe` | int | `-1` | Max years of experience required |
+| `max_yoe` | int | `-1` | Min YOE required per posting (highest "x+" value, or lower bound of range) |
 | `min_education` | str | `""` | `"BS"`, `"MS"`, or `"PhD"` |
 | `responsibilities` | str | `"[]"` | JSON-serialized list |
 | `qualifications` | str | `"[]"` | JSON-serialized list |
@@ -145,6 +145,6 @@ Dynamically added columns (via ALTER TABLE):
 - Pull `chroma_index/` from the offline pipeline's git repo; set as `CHROMA_PATH`
 - Open the collection via `chromadb.PersistentClient(path=CHROMA_PATH).get_collection("job_descriptions")`
 - `responsibilities` and `qualifications` are JSON strings — deserialize with `json.loads()` before use
-- `max_yoe == -1` means no experience requirement is stated; treat as no upper bound when filtering
+- `max_yoe == -1` means no experience requirement was extracted; skip the filter entirely for that job. When filtering, `max_yoe` is the floor of experience required by the posting — not a ceiling.
 - `min_education == ""` means no education requirement is stated; treat as no constraint when filtering
 - Resume embeddings must use `input_type="query"` (asymmetric to the offline `"document"` embeddings)

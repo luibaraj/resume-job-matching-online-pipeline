@@ -43,14 +43,14 @@ Real-time REST API that accepts a resume and returns a ranked list of job matche
 
 ### Module Layout
 
-- `config.py` — API keys (`VOYAGE_API_KEY`, `COHERE_API_KEY`, `OPENROUTER_API_KEY`), paths (`CHROMA_DIR`, `CHROMA_COLLECTION`), thresholds (`TOP_K_RETRIEVE=100`, `TOP_K_RERANK_DEFAULT=10`), model names
+- `config.py` — API keys (`VOYAGE_API_KEY`, `COHERE_API_KEY`, `OPENROUTER_API_KEY`), paths (`CHROMA_DIR`, `CHROMA_COLLECTION`), model names (`VOYAGE_MODEL`, `COHERE_RERANK_MODEL`, `OPENROUTER_MODEL`, `OPENROUTER_BASE_URL`), thresholds (`TOP_K_RETRIEVE=100`, `TOP_K_RERANK_DEFAULT=10`, `CHROMA_EF_SEARCH=200`)
 - `app/main.py` — FastAPI app entry point; mounts router, starts Uvicorn
-- `app/routes.py` — `POST /match` endpoint; validates input, calls pipeline steps in order, returns JSON array
+- `app/routes.py` — `POST /match` endpoint; validates input, calls pipeline steps in order, returns JSON array; also `GET /health` (liveness) and `GET /ready` (checks VoyageAI, ChromaDB, OpenRouter)
 - `app/schemas.py` — Pydantic models: `MatchRequest` (resume, top_k, education, years_of_experience) and `MatchResult` (job_id, title, company, url, score, explanation, corpus_warning)
-- `pipeline/embed.py` — `embed_resume(text) → list[float]`; calls VoyageAI with `input_type="query"` (asymmetric to offline `"document"` embeddings — required for correct retrieval)
+- `pipeline/embed.py` — `embed(text) → list[float]`; calls VoyageAI with `input_type="query"` (asymmetric to offline `"document"` embeddings — required for correct retrieval)
 - `pipeline/retrieve.py` — `retrieve(vector, top_k, filters) → list[dict]`; opens `PersistentClient` on `CHROMA_DIR`, queries `"job_descriptions"` collection; applies optional metadata filters
-- `pipeline/rerank.py` — `rerank(resume, candidates, top_k) → list[dict]`; Cohere `rerank-english-v3.0`; document string is `"{title} at {company}"`
-- `pipeline/generate.py` — `extract_requirements()`, `match_skills()`, `filter_hallucinations()`, `generate_explanation()`; `filter_hallucinations` is pure Python (substring check) — no API call
+- `pipeline/rerank.py` — `rerank(resume, candidates, top_k) → list[dict]`; Cohere `rerank-english-v3.0`; document string includes title, company, responsibilities, and qualifications
+- `pipeline/generate.py` — `explain(resume, job) → tuple[str, bool]`; single LangChain prompt via OpenRouter/DeepSeek; returns `(explanation_text, corpus_warning)`
 
 ### Inference Flow
 
@@ -58,7 +58,7 @@ Real-time REST API that accepts a resume and returns a ranked list of job matche
 2. Embed resume (`input_type="query"`)
 3. Retrieve top-100 from ChromaDB (with optional metadata filters)
 4. Rerank to top-k (Cohere cross-encoder)
-5. Per job: extract requirements → match skills → filter hallucinations (substring) → generate explanation
+5. Per job: `explain()` — single LLM call returns explanation text + corpus_warning flag
 6. Return JSON array
 
 Full spec: `context/pipeline-architecture.md`
@@ -67,7 +67,7 @@ Full spec: `context/pipeline-architecture.md`
 
 - Never embed the resume with `input_type="document"` — it must be `"query"` (asymmetric retrieval)
 - `responsibilities` and `qualifications` from ChromaDB are JSON strings — always `json.loads()` before use
-- `max_yoe == -1` means unknown; treat as no upper bound in filters
+- `max_yoe == -1` means unknown; skip the filter for that job. When set, it is the minimum YOE floor required — filter with `$lte` to find roles at or below the user's experience level.
 - `min_education == ""` means unknown; treat as no constraint in filters
 - Do not rebuild or write to the ChromaDB index — read-only
 

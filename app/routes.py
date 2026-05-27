@@ -29,7 +29,7 @@ router = APIRouter()
 def _build_filters(education: str | None, years_of_experience: int | None) -> dict | None:
     clauses = []
     if years_of_experience is not None:
-        clauses.append({"$and": [{"max_yoe": {"$ne": -1}}, {"max_yoe": {"$gte": years_of_experience}}]})
+        clauses.append({"$and": [{"max_yoe": {"$ne": -1}}, {"max_yoe": {"$lte": years_of_experience}}]})
     if education is not None:
         clauses.append({"$and": [{"min_education": {"$ne": ""}}, {"min_education": {"$eq": education}}]})
     if not clauses:
