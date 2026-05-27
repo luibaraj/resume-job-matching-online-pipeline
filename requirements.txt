@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 voyageai
+langchain-voyageai
 chromadb
 cohere
 openai
