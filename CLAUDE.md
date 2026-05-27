@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Coding Principles
 
-**Philosophy: Do the simplest thing that works.**
+**Philosophy 1: Do the simplest thing that works.**
+
+**Philosophy 2: Make zero assumptions or decisions about system design and implementaiton at any level of the project. Ask the user for clarifiaciton and context.**
 
 ### Simplicity & Conciseness
 
@@ -81,12 +83,12 @@ pytest
 
 ## Environment Variables
 
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `VOYAGE_API_KEY` | Yes | — | VoyageAI resume embedding |
-| `COHERE_API_KEY` | Yes | — | Cohere reranking |
-| `OPENROUTER_API_KEY` | Yes | — | DeepSeek explanation generation |
-| `CHROMA_PATH` | No | `chroma_index` | Path to ChromaDB index pulled from offline pipeline |
+| Variable             | Required | Default        | Purpose                                             |
+| -------------------- | -------- | -------------- | --------------------------------------------------- |
+| `VOYAGE_API_KEY`     | Yes      | —              | VoyageAI resume embedding                           |
+| `COHERE_API_KEY`     | Yes      | —              | Cohere reranking                                    |
+| `OPENROUTER_API_KEY` | Yes      | —              | DeepSeek explanation generation                     |
+| `CHROMA_PATH`        | No       | `chroma_index` | Path to ChromaDB index pulled from offline pipeline |
 
 ## Data Source
 

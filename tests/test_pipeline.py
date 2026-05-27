@@ -87,3 +87,89 @@ def test_retrieve_no_filters(mock_chroma):
     retrieve(_QUERY_VECTOR)
     call_kwargs = mock_chroma.query.call_args.kwargs
     assert "where" not in call_kwargs
+
+
+from pipeline.rerank import rerank, _format_job
+from config import COHERE_RERANK_MODEL
+
+_CANDIDATES = [
+    {
+        "job_id": "job1",
+        "title": "ML Engineer",
+        "company": "Acme",
+        "job_url": "http://a.com",
+        "responsibilities": '["Build models", "Deploy pipelines"]',
+        "qualifications": '["Python", "PyTorch"]',
+    },
+    {
+        "job_id": "job2",
+        "title": "Data Scientist",
+        "company": "Corp",
+        "job_url": "http://b.com",
+        "responsibilities": '["Analyze data"]',
+        "qualifications": '["SQL", "Statistics"]',
+    },
+]
+
+
+@pytest.fixture
+def mock_cohere(mocker):
+    r0 = mocker.MagicMock()
+    r0.index = 1
+    r0.relevance_score = 0.9
+
+    r1 = mocker.MagicMock()
+    r1.index = 0
+    r1.relevance_score = 0.4
+
+    mock_response = mocker.MagicMock()
+    mock_response.results = [r0, r1]
+
+    mock_client = mocker.MagicMock()
+    mock_client.rerank.return_value = mock_response
+
+    mocker.patch("pipeline.rerank.cohere.ClientV2", return_value=mock_client)
+    return mock_client
+
+
+def test_rerank_returns_top_k(mock_cohere):
+    results = rerank("resume text", _CANDIDATES, top_k=2)
+    assert len(results) == 2
+
+
+def test_rerank_score_field(mock_cohere):
+    results = rerank("resume text", _CANDIDATES, top_k=2)
+    for r in results:
+        assert isinstance(r["score"], float)
+
+
+def test_rerank_order(mock_cohere):
+    results = rerank("resume text", _CANDIDATES, top_k=2)
+    assert results[0]["score"] >= results[1]["score"]
+
+
+def test_rerank_index_mapping(mock_cohere):
+    results = rerank("resume text", _CANDIDATES, top_k=2)
+    assert results[0]["job_id"] == "job2"  # index=1 ranked first
+    assert results[1]["job_id"] == "job1"  # index=0 ranked second
+
+
+def test_rerank_uses_correct_model(mock_cohere):
+    rerank("resume text", _CANDIDATES, top_k=2)
+    assert mock_cohere.rerank.call_args.kwargs["model"] == COHERE_RERANK_MODEL
+
+
+def test_rerank_document_format():
+    doc = _format_job(_CANDIDATES[0])
+    assert "ML Engineer at Acme" in doc
+    assert "Responsibilities:" in doc
+    assert "- Build models" in doc
+    assert "Qualifications:" in doc
+    assert "- Python" in doc
+
+
+def test_rerank_missing_sections():
+    candidate = {"title": "SWE", "company": "X", "responsibilities": "[]", "qualifications": "[]"}
+    doc = _format_job(candidate)
+    assert "Responsibilities:" not in doc
+    assert "Qualifications:" not in doc
