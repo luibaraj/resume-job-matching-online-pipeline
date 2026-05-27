@@ -33,7 +33,7 @@ The ChromaDB index is built and committed to the offline pipeline's git repo on 
 
 ---
 
-## Inference Pipeline — 9 Steps
+## Inference Pipeline — 6 Steps
 
 ### 1. Input Validation
 FastAPI receives `POST /match`. Pydantic validates:
@@ -55,23 +55,10 @@ Retrieving 100 candidates before reranking ensures the reranker has enough signa
 ### 4. Reranking
 The top-100 candidates are sent to Cohere `rerank-english-v3.0`. Each candidate is represented as `"{title} at {company}"`. The cross-encoder scores each job against the full resume text jointly (not in isolation), producing a relevance score that captures semantic fit beyond embedding similarity. Returns top-k by relevance score.
 
-### 5. Requirement Extraction
-For each of the top-k jobs, an LLM (DeepSeek via OpenRouter) reads the job's `qualifications` and `responsibilities` and extracts:
-- A list of required skills
-- The job domain
+### 5. Explanation Generation
+For each of the top-k jobs, an LLM (DeepSeek via OpenRouter) receives the full resume and job text (title, company, responsibilities, qualifications) in a single prompt. It either writes a 2–3 sentence explanation of why the candidate fits the role, or returns a fixed corpus warning string if the candidate is not a good match. `corpus_warning: true` is set when the warning string is returned or the LLM call fails.
 
-### 6. Skill Matching
-The LLM compares skills mentioned in the resume against the extracted job requirements. Produces a list of candidate skill match strings (claimed overlaps).
-
-### 7. Hallucination Filtering
-Each claimed skill match is verified as a case-insensitive substring of the job's raw qualifications/responsibilities text. Any match not literally present in the source text is dropped. This step is pure Python — no LLM, no API call.
-
-**Rationale:** LLMs occasionally infer or paraphrase skills that aren't actually stated in the job description. Substring verification grounds every match in the source text, preventing the explanation from fabricating requirements.
-
-### 8. Explanation Generation
-The LLM summarizes the verified matches into a plain-English explanation of why the candidate fits the role. If no verified matches exist or the LLM call fails, the explanation falls back to the first 500 characters of the job description.
-
-### 9. Response
+### 6. Response
 Returns a JSON array. Each element:
 
 ```json

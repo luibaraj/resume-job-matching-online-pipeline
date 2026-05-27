@@ -173,3 +173,149 @@ def test_rerank_missing_sections():
     doc = _format_job(candidate)
     assert "Responsibilities:" not in doc
     assert "Qualifications:" not in doc
+
+
+from pipeline.generate import explain, _CORPUS_WARNING
+
+_JOB = {
+    "title": "ML Engineer",
+    "company": "Acme",
+    "responsibilities": '["Build models", "Deploy pipelines"]',
+    "qualifications": '["Python", "PyTorch"]',
+}
+_RESUME = "Experienced ML engineer with 3 years of Python and PyTorch experience."
+
+
+@pytest.fixture
+def mock_chain(mocker):
+    mock = mocker.MagicMock()
+    mocker.patch("pipeline.generate.ChatOpenAI", return_value=mocker.MagicMock())
+    mocker.patch("pipeline.generate.ChatPromptTemplate.from_messages", return_value=mocker.MagicMock())
+    chain_mock = mocker.MagicMock()
+    chain_mock.invoke.return_value = "Strong fit: candidate has Python and PyTorch experience."
+    mocker.patch("pipeline.generate.ChatPromptTemplate.from_messages").__or__ = mocker.MagicMock(return_value=chain_mock)
+
+    # Patch at the chain construction level via __or__ chaining
+    prompt_mock = mocker.MagicMock()
+    prompt_mock.__or__ = mocker.MagicMock(return_value=chain_mock)
+    mocker.patch("pipeline.generate.ChatPromptTemplate.from_messages", return_value=prompt_mock)
+    return chain_mock
+
+
+def _patch_chain(mocker, return_value):
+    chain_mock = mocker.MagicMock()
+    chain_mock.invoke.return_value = return_value
+    prompt_mock = mocker.MagicMock()
+    llm_mock = mocker.MagicMock()
+    llm_mock.__or__ = mocker.MagicMock(return_value=chain_mock)
+    prompt_mock.__or__ = mocker.MagicMock(return_value=llm_mock)
+    mocker.patch("pipeline.generate.ChatOpenAI", return_value=mocker.MagicMock())
+    mocker.patch("pipeline.generate.ChatPromptTemplate.from_messages", return_value=prompt_mock)
+    mocker.patch("pipeline.generate.StrOutputParser", return_value=mocker.MagicMock())
+    return chain_mock
+
+
+def test_explain_good_fit_returns_explanation(mocker):
+    _patch_chain(mocker, "Strong fit: candidate has Python and PyTorch.")
+    explanation, warning = explain(_RESUME, _JOB)
+    assert explanation == "Strong fit: candidate has Python and PyTorch."
+    assert warning is False
+
+
+def test_explain_good_fit_no_corpus_warning(mocker):
+    _patch_chain(mocker, "Candidate matches all required skills.")
+    _, warning = explain(_RESUME, _JOB)
+    assert warning is False
+
+
+def test_explain_llm_returns_corpus_warning_string(mocker):
+    _patch_chain(mocker, _CORPUS_WARNING)
+    explanation, warning = explain(_RESUME, _JOB)
+    assert explanation == _CORPUS_WARNING
+    assert warning is True
+
+
+def test_explain_llm_returns_empty_string(mocker):
+    _patch_chain(mocker, "")
+    explanation, warning = explain(_RESUME, _JOB)
+    assert explanation == _CORPUS_WARNING
+    assert warning is True
+
+
+def test_explain_llm_returns_whitespace_only(mocker):
+    _patch_chain(mocker, "   \n  ")
+    explanation, warning = explain(_RESUME, _JOB)
+    assert explanation == _CORPUS_WARNING
+    assert warning is True
+
+
+def test_explain_llm_call_raises(mocker):
+    chain_mock = mocker.MagicMock()
+    chain_mock.invoke.side_effect = Exception("API timeout")
+    prompt_mock = mocker.MagicMock()
+    llm_mock = mocker.MagicMock()
+    llm_mock.__or__ = mocker.MagicMock(return_value=chain_mock)
+    prompt_mock.__or__ = mocker.MagicMock(return_value=llm_mock)
+    mocker.patch("pipeline.generate.ChatOpenAI", return_value=mocker.MagicMock())
+    mocker.patch("pipeline.generate.ChatPromptTemplate.from_messages", return_value=prompt_mock)
+    mocker.patch("pipeline.generate.StrOutputParser", return_value=mocker.MagicMock())
+    explanation, warning = explain(_RESUME, _JOB)
+    assert explanation == _CORPUS_WARNING
+    assert warning is True
+
+
+def test_explain_strips_whitespace_from_output(mocker):
+    _patch_chain(mocker, "  Great fit for the role.  ")
+    explanation, _ = explain(_RESUME, _JOB)
+    assert explanation == "Great fit for the role."
+
+
+def test_explain_passes_title_and_company(mocker):
+    chain_mock = _patch_chain(mocker, "Good fit.")
+    explain(_RESUME, _JOB)
+    call_kwargs = chain_mock.invoke.call_args[0][0]
+    assert call_kwargs["title"] == "ML Engineer"
+    assert call_kwargs["company"] == "Acme"
+
+
+def test_explain_passes_resume(mocker):
+    chain_mock = _patch_chain(mocker, "Good fit.")
+    explain(_RESUME, _JOB)
+    call_kwargs = chain_mock.invoke.call_args[0][0]
+    assert call_kwargs["resume"] == _RESUME
+
+
+def test_explain_formats_responsibilities_as_bullets(mocker):
+    chain_mock = _patch_chain(mocker, "Good fit.")
+    explain(_RESUME, _JOB)
+    call_kwargs = chain_mock.invoke.call_args[0][0]
+    assert "- Build models" in call_kwargs["responsibilities"]
+    assert "- Deploy pipelines" in call_kwargs["responsibilities"]
+
+
+def test_explain_formats_qualifications_as_bullets(mocker):
+    chain_mock = _patch_chain(mocker, "Good fit.")
+    explain(_RESUME, _JOB)
+    call_kwargs = chain_mock.invoke.call_args[0][0]
+    assert "- Python" in call_kwargs["qualifications"]
+    assert "- PyTorch" in call_kwargs["qualifications"]
+
+
+def test_explain_invalid_json_responsibilities(mocker):
+    _patch_chain(mocker, "Good fit.")
+    job = dict(_JOB, responsibilities="not-json")
+    explanation, warning = explain(_RESUME, job)
+    assert warning is False  # should not crash; empty lists used as fallback
+
+
+def test_explain_invalid_json_qualifications(mocker):
+    _patch_chain(mocker, "Good fit.")
+    job = dict(_JOB, qualifications=None)
+    explanation, warning = explain(_RESUME, job)
+    assert warning is False
+
+
+def test_explain_missing_job_fields(mocker):
+    _patch_chain(mocker, "Good fit.")
+    explanation, warning = explain(_RESUME, {})
+    assert warning is False  # graceful fallback to empty strings
