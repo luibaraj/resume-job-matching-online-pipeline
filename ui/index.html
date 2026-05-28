@@ -68,6 +68,15 @@
       </label>
 
       <label>
+        Role Type
+        <select id="internship">
+          <option value="">No preference</option>
+          <option value="false">Full-time only</option>
+          <option value="true">Internships only</option>
+        </select>
+      </label>
+
+      <label>
         Top K
         <input type="number" id="top_k" min="1" value="10">
       </label>
@@ -103,6 +112,7 @@
       const explain_top_k = parseInt(document.getElementById('explain_top_k').value);
       const yoeVal = document.getElementById('yoe').value;
       const educationVal = document.getElementById('education').value;
+      const internshipVal = document.getElementById('internship').value;
 
       const body = {
         resume: document.getElementById('resume').value,
@@ -111,6 +121,7 @@
       };
       if (educationVal) body.education = educationVal;
       if (yoeVal !== '') body.years_of_experience = parseInt(yoeVal);
+      if (internshipVal !== '') body.internship = internshipVal === 'true';
 
       try {
         const res = await fetch('http://localhost:8000/match', {

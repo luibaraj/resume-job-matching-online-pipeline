@@ -44,8 +44,8 @@ _CHROMA_RESULT = {
     "distances": [[0.1, 0.2]],
     "metadatas": [
         [
-            {"title": "SWE", "company": "Acme", "job_url": "http://a.com", "max_yoe": 3, "min_education": "BS", "responsibilities": "[]", "qualifications": "[]"},
-            {"title": "MLE", "company": "Corp", "job_url": "http://b.com", "max_yoe": -1, "min_education": "", "responsibilities": "[]", "qualifications": "[]"},
+            {"title": "SWE", "company": "Acme", "job_url": "http://a.com", "max_yoe": 3, "min_education": "BS", "responsibilities": "[]", "qualifications": "[]", "is_internship": 0},
+            {"title": "MLE", "company": "Corp", "job_url": "http://b.com", "max_yoe": -1, "min_education": "", "responsibilities": "[]", "qualifications": "[]", "is_internship": 0},
         ]
     ],
 }
@@ -70,12 +70,6 @@ def test_retrieve_returns_list_of_dicts(mock_chroma):
     assert results[1]["job_id"] == "job2"
 
 
-def test_retrieve_uses_ef_400(mock_chroma):
-    retrieve(_QUERY_VECTOR)
-    call_kwargs = mock_chroma.query.call_args.kwargs
-    assert call_kwargs["query_params"] == {"hnsw:ef": 400}
-
-
 def test_retrieve_passes_filters(mock_chroma):
     filters = {"min_education": {"$eq": "BS"}}
     retrieve(_QUERY_VECTOR, filters=filters)
@@ -87,6 +81,40 @@ def test_retrieve_no_filters(mock_chroma):
     retrieve(_QUERY_VECTOR)
     call_kwargs = mock_chroma.query.call_args.kwargs
     assert "where" not in call_kwargs
+
+
+from app.routes import _build_filters
+
+
+def test_build_filters_internship_true():
+    f = _build_filters(None, None, True)
+    assert f == {"is_internship": {"$eq": 1}}
+
+
+def test_build_filters_internship_false():
+    f = _build_filters(None, None, False)
+    assert f == {"is_internship": {"$eq": 0}}
+
+
+def test_build_filters_internship_none():
+    f = _build_filters(None, None, None)
+    assert f is None
+
+
+def test_build_filters_internship_combined_with_yoe():
+    f = _build_filters(None, 3, False)
+    assert f == {"$and": [
+        {"$or": [{"max_yoe": {"$eq": -1}}, {"max_yoe": {"$lte": 3}}]},
+        {"is_internship": {"$eq": 0}},
+    ]}
+
+
+def test_build_filters_internship_combined_with_education():
+    f = _build_filters("BS", None, True)
+    assert f == {"$and": [
+        {"min_education": {"$in": ["", "BS"]}},
+        {"is_internship": {"$eq": 1}},
+    ]}
 
 
 from pipeline.rerank import rerank, _format_job

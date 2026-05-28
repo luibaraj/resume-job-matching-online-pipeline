@@ -11,6 +11,7 @@ class MatchRequest(BaseModel):
     explain_top_k: Optional[int] = None
     education: Optional[str] = None
     years_of_experience: Optional[int] = None
+    internship: Optional[bool] = None
 
 
 class MatchResult(BaseModel):

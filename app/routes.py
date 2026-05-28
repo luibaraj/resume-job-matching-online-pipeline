@@ -35,12 +35,18 @@ def _education_filter(education: str) -> dict:
     return {"min_education": {"$in": allowed}}
 
 
-def _build_filters(education: str | None, years_of_experience: int | None) -> dict | None:
+def _internship_filter(internship: bool) -> dict:
+    return {"is_internship": {"$eq": 1 if internship else 0}}
+
+
+def _build_filters(education: str | None, years_of_experience: int | None, internship: bool | None) -> dict | None:
     clauses = []
     if years_of_experience is not None:
         clauses.append({"$or": [{"max_yoe": {"$eq": -1}}, {"max_yoe": {"$lte": years_of_experience}}]})
     if education is not None:
         clauses.append(_education_filter(education))
+    if internship is not None:
+        clauses.append(_internship_filter(internship))
     if not clauses:
         return None
     if len(clauses) == 1:
@@ -50,7 +56,7 @@ def _build_filters(education: str | None, years_of_experience: int | None) -> di
 
 @router.post("/match", response_model=list[MatchResult])
 def match(req: MatchRequest):
-    filters = _build_filters(req.education, req.years_of_experience)
+    filters = _build_filters(req.education, req.years_of_experience, req.internship)
 
     query_vector = embed(req.resume)
     candidates = retrieve(query_vector, top_k=TOP_K_RETRIEVE, filters=filters)
