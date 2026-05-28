@@ -1,4 +1,5 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import chromadb
 import voyageai
@@ -67,13 +68,17 @@ def match(req: MatchRequest):
 
     explain_limit = req.explain_top_k if req.explain_top_k is not None else req.top_k
 
-    results = []
-    for i, job in enumerate(ranked):
+    def _explain_job(args: tuple[int, dict]) -> tuple[str, bool]:
+        i, job = args
         if i < explain_limit:
-            explanation_text, corpus_warning = explain(req.resume, job)
-        else:
-            explanation_text, corpus_warning = "", False
-        results.append(MatchResult(
+            return explain(req.resume, job)
+        return "", False
+
+    with ThreadPoolExecutor() as executor:
+        explanations = list(executor.map(_explain_job, enumerate(ranked)))
+
+    return [
+        MatchResult(
             job_id=job["job_id"],
             title=job.get("title", ""),
             company=job.get("company", ""),
@@ -81,8 +86,9 @@ def match(req: MatchRequest):
             score=job["score"],
             explanation=explanation_text,
             corpus_warning=corpus_warning,
-        ))
-    return results
+        )
+        for job, (explanation_text, corpus_warning) in zip(ranked, explanations)
+    ]
 
 
 @router.get("/health")
