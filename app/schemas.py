@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -12,6 +12,8 @@ class MatchRequest(BaseModel):
     education: Optional[str] = None
     years_of_experience: Optional[int] = None
     internship: Optional[bool] = None
+    exclude_companies: Optional[list[str]] = None
+    rerank_method: Literal["cohere", "llm"] = "cohere"
 
 
 class MatchResult(BaseModel):

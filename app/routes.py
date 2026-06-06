@@ -40,7 +40,16 @@ def _internship_filter(internship: bool) -> dict:
     return {"is_internship": {"$eq": 1 if internship else 0}}
 
 
-def _build_filters(education: str | None, years_of_experience: int | None, internship: bool | None) -> dict | None:
+def _exclude_companies_filter(companies: list[str]) -> dict:
+    return {"company": {"$nin": companies}}
+
+
+def _build_filters(
+    education: str | None,
+    years_of_experience: int | None,
+    internship: bool | None,
+    exclude_companies: list[str] | None,
+) -> dict | None:
     clauses = []
     if years_of_experience is not None:
         clauses.append({"$or": [{"max_yoe": {"$eq": -1}}, {"max_yoe": {"$lte": years_of_experience}}]})
@@ -48,6 +57,8 @@ def _build_filters(education: str | None, years_of_experience: int | None, inter
         clauses.append(_education_filter(education))
     if internship is not None:
         clauses.append(_internship_filter(internship))
+    if exclude_companies:
+        clauses.append(_exclude_companies_filter(exclude_companies))
     if not clauses:
         return None
     if len(clauses) == 1:
@@ -57,14 +68,14 @@ def _build_filters(education: str | None, years_of_experience: int | None, inter
 
 @router.post("/match", response_model=list[MatchResult])
 def match(req: MatchRequest):
-    filters = _build_filters(req.education, req.years_of_experience, req.internship)
+    filters = _build_filters(req.education, req.years_of_experience, req.internship, req.exclude_companies)
 
     query_vector = embed(req.resume)
     candidates = retrieve(query_vector, top_k=TOP_K_RETRIEVE, filters=filters)
     if not candidates:
         return []
 
-    ranked = rerank(req.resume, candidates, top_k=req.top_k)
+    ranked = rerank(req.resume, candidates, top_k=req.top_k, method=req.rerank_method)
 
     explain_limit = req.explain_top_k if req.explain_top_k is not None else req.top_k
 

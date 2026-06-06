@@ -1,4 +1,5 @@
-<!-- uvicorn app.main:app --reload -->
+<!-- kill -9 $(lsof -t -i :8000) -->
+<!-- venv/bin/python3 -m uvicorn app.main:app --reload -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,13 +50,29 @@
   <form id="form">
     <label>
       Resume
-      <textarea id="resume" placeholder="Paste your resume here..." required>Built an LLM-powered semantic search engine using dense embeddings, cross-encoder reranking, and hybrid retrieval; validated with a synthetic evaluation framework
+      <textarea id="resume" placeholder="Paste your resume here..." required>Education: B.S. Statistics & Data Science, Applied Mathematics — UC Santa Barbara (2020–2025)
 
-Trained an unsupervised anomaly detection model using neural networks and clustering in PyTorch and Scikit-learn, applied to high-dimensional, large data  to automate quality control, eliminating 2–3+ hours of manual review.
+Experience:
 
-Built an LLM-powered conversational agent using prompt engineering, context management, and LLM output post-processing via the OpenAI API; delivered production-grade Python and Flask REST API backen
 
-Developed a preprocessing pipeline chunking variable-length time-series recordings into fixed-interval 2D spectrograms to train a PyTorch CNN classifier, improving evaluation metrics</textarea>
+
+
+
+Data Science Research Intern: anomaly detection, unsupervised ML, neural network embeddings, clustering on high-dimensional simulation data using Python, PyTorch, Scikit-learn, Pandas, NumPy
+
+
+
+Data Scientist Intern: LLM-powered guidance agent, GenAI architecture, OpenAI API, prompt engineering, NLP pipeline
+
+
+
+Data Science Capstone Intern: audio classification CNN (PyTorch)
+
+
+
+Full-Stack AI Engineer on Resume-Job Matching System: hybrid semantic retrieval, dense embeddings, cross-encoder reranking, FastAPI, LangChain, DeepSeek V3, ChromaDB, VoyageAI, Cohere, multi-source job ingestion pipeline, SQLite schema design, GitHub Actions automation
+
+Skills: Python, SQL, PyTorch, Scikit-learn, Pandas, NumPy, LangChain, FastAPI, OpenAI API, ChromaDB, VoyageAI, Cohere, GitHub Actions</textarea>
     </label>
 
     <div class="row">
@@ -92,7 +109,20 @@ Developed a preprocessing pipeline chunking variable-length time-series recordin
         Explain Top K
         <input type="number" id="explain_top_k" min="0" value="3">
       </label>
+
+      <label>
+        Rerank Method
+        <select id="rerank_method">
+          <option value="cohere">Cohere (fast)</option>
+          <option value="llm">LLM sliding window</option>
+        </select>
+      </label>
     </div>
+
+    <label>
+      Exclude Companies
+      <textarea id="exclude_companies" rows="3" placeholder="One company per line&#10;e.g.&#10;Google LLC&#10;Meta Platforms, Inc."></textarea>
+    </label>
 
     <button type="submit" id="submit-btn">Find Matches</button>
   </form>
@@ -129,6 +159,10 @@ Developed a preprocessing pipeline chunking variable-length time-series recordin
       if (educationVal) body.education = educationVal;
       if (yoeVal !== '') body.years_of_experience = parseInt(yoeVal);
       if (internshipVal !== '') body.internship = internshipVal === 'true';
+      const excludeCompanies = document.getElementById('exclude_companies').value
+        .split('\n').map(s => s.trim()).filter(Boolean);
+      if (excludeCompanies.length > 0) body.exclude_companies = excludeCompanies;
+      body.rerank_method = document.getElementById('rerank_method').value;
 
       try {
         const res = await fetch('http://localhost:8000/match', {
