@@ -56,9 +56,9 @@ Real-time REST API that accepts a resume and returns a ranked list of job matche
 
 1. Validate input (Pydantic)
 2. Embed resume (`input_type="query"`)
-3. Retrieve top-100 from ChromaDB (with optional metadata filters)
-4. Rerank to top-k (Cohere cross-encoder)
-5. Per job: `explain()` — single LLM call returns explanation text + corpus_warning flag
+3. Retrieve top-100 from ChromaDB (with optional metadata filters, excluding `exclude_companies` via `$nin`)
+4. Rerank to top-k (`rerank_method="cohere"` cross-encoder or `rerank_method="llm"` list-wise ranker)
+5. Per job (up to `explain_top_k` if set, else all): `explain()` — single LLM call returns explanation text + corpus_warning flag
 6. Return JSON array
 
 Full spec: `context/pipeline-architecture.md`
@@ -69,6 +69,8 @@ Full spec: `context/pipeline-architecture.md`
 - `responsibilities` and `qualifications` from ChromaDB are JSON strings — always `json.loads()` before use
 - `max_yoe == -1` means unknown; skip the filter for that job. When set, it is the minimum YOE floor required — filter with `$lte` to find roles at or below the user's experience level.
 - `min_education == ""` means unknown; treat as no constraint in filters
+- `exclude_companies` blocks specific companies at the ChromaDB retrieval stage using `$nin`; applied before embedding/reranking
+- `OPENROUTER_MODEL` and `OPENROUTER_BASE_URL` are shared by both `generate.py` and the LLM reranker in `rerank.py`
 - Do not rebuild or write to the ChromaDB index — read-only
 
 ## Development Commands
@@ -87,7 +89,7 @@ pytest
 | -------------------- | -------- | -------------- | --------------------------------------------------- |
 | `VOYAGE_API_KEY`     | Yes      | —              | VoyageAI resume embedding                           |
 | `COHERE_API_KEY`     | Yes      | —              | Cohere reranking                                    |
-| `OPENROUTER_API_KEY` | Yes      | —              | DeepSeek explanation generation                     |
+| `OPENROUTER_API_KEY` | Yes      | —              | DeepSeek explanation generation and LLM reranking   |
 | `CHROMA_PATH`        | No       | `chroma_index` | Path to ChromaDB index pulled from offline pipeline |
 
 ## Data Source
