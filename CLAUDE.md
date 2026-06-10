@@ -46,10 +46,10 @@ Real-time REST API that accepts a resume and returns a ranked list of job matche
 - `config.py` — API keys (`VOYAGE_API_KEY`, `COHERE_API_KEY`, `OPENROUTER_API_KEY`), paths (`CHROMA_DIR`, `CHROMA_COLLECTION`), model names (`VOYAGE_MODEL`, `COHERE_RERANK_MODEL`, `OPENROUTER_MODEL`, `OPENROUTER_BASE_URL`), thresholds (`TOP_K_RETRIEVE=100`, `TOP_K_RERANK_DEFAULT=10`, `CHROMA_EF_SEARCH=200`)
 - `app/main.py` — FastAPI app entry point; mounts router, starts Uvicorn
 - `app/routes.py` — `POST /match` endpoint; validates input, calls pipeline steps in order, returns JSON array; also `GET /health` (liveness) and `GET /ready` (checks VoyageAI, ChromaDB, OpenRouter)
-- `app/schemas.py` — Pydantic models: `MatchRequest` (resume, top_k, education, years_of_experience) and `MatchResult` (job_id, title, company, url, score, explanation, corpus_warning)
+- `app/schemas.py` — Pydantic models: `MatchRequest` (resume, top_k, education, years_of_experience, rerank_method, explain_top_k, exclude_companies) and `MatchResult` (job_id, title, company, url, score, explanation, corpus_warning)
 - `pipeline/embed.py` — `embed(text) → list[float]`; calls VoyageAI with `input_type="query"` (asymmetric to offline `"document"` embeddings — required for correct retrieval)
 - `pipeline/retrieve.py` — `retrieve(vector, top_k, filters) → list[dict]`; opens `PersistentClient` on `CHROMA_DIR`, queries `"job_descriptions"` collection; applies optional metadata filters
-- `pipeline/rerank.py` — `rerank(resume, candidates, top_k) → list[dict]`; Cohere `rerank-english-v3.0`; document string includes title, company, responsibilities, and qualifications
+- `pipeline/rerank.py` — `rerank(resume, candidates, top_k, method) → list[dict]`; two methods selectable via `method` param: `"cohere"` (default) uses Cohere `rerank-english-v3.0` cross-encoder; `"llm"` uses a sliding-window list-wise ranker via OpenRouter/DeepSeek (window=10, step=5, shuffles within each window to reduce positional bias, scores as `(n-i)/n`)
 - `pipeline/generate.py` — `explain(resume, job) → tuple[str, bool]`; single LangChain prompt via OpenRouter/DeepSeek; returns `(explanation_text, corpus_warning)`
 
 ### Inference Flow
