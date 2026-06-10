@@ -5,3 +5,5 @@ __pycache__/
 chroma_index/
 .venv/
 my_resume.txt
+ui/
+node_modules/
